@@ -1,211 +1,237 @@
-﻿import React, { useEffect, useState } from 'react';
+﻿import React, { useState, useEffect } from 'react';
+import { Table, Tabs, Tab, Alert, Button } from 'react-bootstrap';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 
-const Admin = () => {
+const AdminSayfasi = () => {
     const { user } = useAuth();
     const navigate = useNavigate();
-    const [users, setUsers] = useState([]);
-    const [artworks, setArtworks] = useState([]);
-    const [auctions, setAuctions] = useState([]);
-    const [invoices, setInvoices] = useState([]);
+    const [activeTab, setActiveTab] = useState('kullanicilar');
+    const [veriler, setVeriler] = useState({
+        kullanicilar: [],
+        eserler: [],
+        koleksiyonlar: [],
+        etkinlikler: []
+    });
+    const [seciliKullanici, setSeciliKullanici] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
 
+    // Kullanıcı admin değilse yönlendir
     useEffect(() => {
-        if (user?.role !== 'Admin') {
-            navigate('/'); // Admin değilse ana sayfaya yönlendir
-        } else {
-            fetchData();
+        if (!user || user.role !== 'admin') {
+            navigate('/');
         }
     }, [user, navigate]);
 
-    const fetchData = async () => {
-        try {
-            const usersResponse = await axios.get('/api/users');
-            const artworksResponse = await axios.get('/api/artworks');
-            const auctionsResponse = await axios.get('/api/auctions');
-            const invoicesResponse = await axios.get('/api/invoices');
+    // Verileri çek
+    useEffect(() => {
+        const fetchData = async () => {
+            setLoading(true);
+            try {
+                const responses = await Promise.all([
+                    fetch('/api/kullanicilar'),
+                    fetch('/api/eserler'),
+                ]);
 
-            setUsers(usersResponse.data);
-            setArtworks(artworksResponse.data);
-            setAuctions(auctionsResponse.data);
-            setInvoices(invoicesResponse.data);
-        } catch (error) {
-            console.error('Veri çekme hatası:', error);
+                const data = await Promise.all(responses.map(res => res.json()));
+
+                setVeriler({
+                    kullanicilar: data[0],
+                    eserler: data[1],
+                    koleksiyonlar: data[2],
+                    etkinlikler: data[3]
+                });
+            } catch (err) {
+                setError('Veri çekme hatası: ' + err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchData();
+    }, []);
+
+    // Seçili kullanıcıya göre filtreleme
+    const filtreliEserler = seciliKullanici
+        ? veriler.eserler.filter(eser => eser.kullaniciId === seciliKullanici.id)
+        : veriler.eserler;
+
+    const handleUpdate = async (tablo, id, guncelVeri) => {
+        try {
+            const response = await fetch(`/api/${tablo}/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(guncelVeri)
+            });
+
+            if (!response.ok) throw new Error('Güncelleme başarısız');
+
+            // Yerel state'i güncelle
+            setVeriler(prev => ({
+                ...prev,
+                [tablo]: prev[tablo].map(item =>
+                    item.id === id ? { ...item, ...guncelVeri } : item
+                )
+            }));
+        } catch (err) {
+            setError('Güncelleme hatası: ' + err.message);
         }
     };
 
-    const handleEditUser = (userId) => {
-        // Kullanıcı düzenleme işlemi
-        console.log('Düzenle:', userId);
-    };
-
-    const handleDeleteUser = async (userId) => {
-        try {
-            await axios.delete(`/api/users/${userId}`);
-            fetchData(); // Verileri yeniden çek
-        } catch (error) {
-            console.error('Kullanıcı silme hatası:', error);
-        }
-    };
+    if (loading) return <div className="text-center mt-5">Yükleniyor...</div>;
+    if (error) return <Alert variant="danger">{error}</Alert>;
 
     return (
-        <div className="container mt-5">
-            <h1 className="text-center mb-4">Admin Paneli</h1>
+        <div className="container-fluid mt-3">
+            <h2 className="mb-4">Admin Paneli</h2>
 
-            {/* Kullanıcılar Tablosu */}
-            <h2>Kullanıcılar</h2>
-            <table className="table table-bordered table-striped">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Ad</th>
-                        <th>E-posta</th>
-                        <th>Rol</th>
-                        <th>İşlemler</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {users.map((user) => (
-                        <tr key={user.id}>
-                            <td>{user.id}</td>
-                            <td>{user.name}</td>
-                            <td>{user.email}</td>
-                            <td>{user.role}</td>
-                            <td>
-                                <button
-                                    className="btn btn-warning btn-sm me-2"
-                                    onClick={() => handleEditUser(user.id)}
-                                >
-                                    Düzenle
-                                </button>
-                                <button
-                                    className="btn btn-danger btn-sm"
-                                    onClick={() => handleDeleteUser(user.id)}
-                                >
-                                    Sil
-                                </button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-
-            {/* Sanat Eserleri Tablosu */}
-            <h2>Sanat Eserleri</h2>
-            <table className="table table-bordered table-striped">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Başlık</th>
-                        <th>Sanatçı</th>
-                        <th>Kategori</th>
-                        <th>İşlemler</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {artworks.map((artwork) => (
-                        <tr key={artwork.id}>
-                            <td>{artwork.id}</td>
-                            <td>{artwork.title}</td>
-                            <td>{artwork.artist?.name}</td>
-                            <td>{artwork.category}</td>
-                            <td>
-                                <button
-                                    className="btn btn-warning btn-sm me-2"
-                                    onClick={() => handleEditArtwork(artwork.id)}
-                                >
-                                    Düzenle
-                                </button>
-                                <button
-                                    className="btn btn-danger btn-sm"
-                                    onClick={() => handleDeleteArtwork(artwork.id)}
-                                >
-                                    Sil
-                                </button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-
-            {/* Müzayedeler Tablosu */}
-            <h2>Müzayedeler</h2>
-            <table className="table table-bordered table-striped">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Ad</th>
-                        <th>Başlangıç Tarihi</th>
-                        <th>Bitiş Tarihi</th>
-                        <th>İşlemler</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {auctions.map((auction) => (
-                        <tr key={auction.id}>
-                            <td>{auction.id}</td>
-                            <td>{auction.name}</td>
-                            <td>{new Date(auction.startDate).toLocaleDateString()}</td>
-                            <td>{new Date(auction.endDate).toLocaleDateString()}</td>
-                            <td>
-                                <button
-                                    className="btn btn-warning btn-sm me-2"
-                                    onClick={() => handleEditAuction(auction.id)}
-                                >
-                                    Düzenle
-                                </button>
-                                <button
-                                    className="btn btn-danger btn-sm"
-                                    onClick={() => handleDeleteAuction(auction.id)}
-                                >
-                                    Sil
-                                </button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-
-            {/* Faturalar Tablosu */}
-            <h2>Faturalar</h2>
-            <table className="table table-bordered table-striped">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Kullanıcı</th>
-                        <th>Tutar</th>
-                        <th>Tarih</th>
-                        <th>İşlemler</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {invoices.map((invoice) => (
-                        <tr key={invoice.id}>
-                            <td>{invoice.id}</td>
-                            <td>{invoice.user?.name}</td>
-                            <td>{invoice.amount} TL</td>
-                            <td>{new Date(invoice.invoiceDate).toLocaleDateString()}</td>
-                            <td>
-                                <button
-                                    className="btn btn-warning btn-sm me-2"
-                                    onClick={() => handleEditInvoice(invoice.id)}
-                                >
-                                    Düzenle
-                                </button>
-                                <button
-                                    className="btn btn-danger btn-sm"
-                                    onClick={() => handleDeleteInvoice(invoice.id)}
-                                >
-                                    Sil
-                                </button>
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+            <Tabs activeKey={activeTab} onSelect={k => setActiveTab(k)} className="mb-3">
+                <Tab eventKey="kullanicilar" title="Kullanıcılar">
+                    <KullaniciTablosu
+                        data={veriler.kullanicilar}
+                        onSelect={setSeciliKullanici}
+                        onUpdate={handleUpdate}
+                    />
+                </Tab>
+                <Tab eventKey="eserler" title="Eserler">
+                    <EserTablosu
+                        data={filtreliEserler}
+                        onUpdate={handleUpdate}
+                    />
+                </Tab>
+            </Tabs>
         </div>
     );
 };
 
-export default Admin;
+// Yardımcı Tablo Bileşenleri
+const EditableCell = ({ value, onUpdate, field, id, tablo }) => {
+    const [editing, setEditing] = useState(false);
+    const [tempValue, setTempValue] = useState(value);
+
+    const handleSave = () => {
+        onUpdate(tablo, id, { [field]: tempValue });
+        setEditing(false);
+    };
+
+    return editing ? (
+        <div className="d-flex">
+            <input
+                type="text"
+                value={tempValue}
+                onChange={(e) => setTempValue(e.target.value)}
+                className="form-control form-control-sm"
+            />
+            <Button variant="success" size="sm" onClick={handleSave} className="ms-2">
+                ✓
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setEditing(false)} className="ms-1">
+                ✕
+            </Button>
+        </div>
+    ) : (
+        <div onClick={() => setEditing(true)} style={{ cursor: 'pointer' }}>
+            {value}
+        </div>
+    );
+};
+
+const KullaniciTablosu = ({ data, onSelect, onUpdate }) => (
+    <Table striped bordered hover responsive>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Ad</th>
+                <th>Email</th>
+                <th>Rol</th>
+                <th>İşlem</th>
+            </tr>
+        </thead>
+        <tbody>
+            {data.map(user => (
+                <tr key={user.id}>
+                    <td>{user.id}</td>
+                    <td>
+                        <EditableCell
+                            value={user.name}
+                            onUpdate={onUpdate}
+                            field="name"
+                            id={user.id}
+                            tablo="kullanicilar"
+                        />
+                    </td>
+                    <td>{user.email}</td>
+                    <td>
+                        <EditableCell
+                            value={user.role}
+                            onUpdate={onUpdate}
+                            field="role"
+                            id={user.id}
+                            tablo="kullanicilar"
+                        />
+                    </td>
+                    <td>
+                        <Button variant="info" size="sm" onClick={() => onSelect(user)}>
+                            Seç
+                        </Button>
+                    </td>
+                </tr>
+            ))}
+        </tbody>
+    </Table>
+);
+
+// Diğer tablo bileşenleri benzer şekilde oluşturulabilir
+const EserTablosu = ({ data, onUpdate }) => (
+    <Table striped bordered hover responsive>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Ad</th>
+                <th>Sanatçı</th>
+                <th>Yıl</th>
+                <th>Fiyat</th>
+            </tr>
+        </thead>
+        <tbody>
+            {data.map(eser => (
+                <tr key={eser.id}>
+                    <td>{eser.id}</td>
+                    <td>
+                        <EditableCell
+                            value={eser.ad}
+                            onUpdate={onUpdate}
+                            field="ad"
+                            id={eser.id}
+                            tablo="eserler"
+                        />
+                    </td>
+                    <td>{eser.sanatciAdi}</td>
+                    <td>
+                        <EditableCell
+                            value={eser.yil}
+                            onUpdate={onUpdate}
+                            field="yil"
+                            id={eser.id}
+                            tablo="eserler"
+                        />
+                    </td>
+                    <td>
+                        <EditableCell
+                            value={eser.fiyat}
+                            onUpdate={onUpdate}
+                            field="fiyat"
+                            id={eser.id}
+                            tablo="eserler"
+                        />
+                    </td>
+                </tr>
+            ))}
+        </tbody>
+    </Table>
+);
+
+// KoleksiyonTablosu ve EtkinlikTablosu bileşenleri benzer şekilde oluşturulabilir
+
+export default AdminSayfasi;

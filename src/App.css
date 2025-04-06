@@ -36,3 +36,57 @@
     transform: rotate(360deg);
   }
 }
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+.navbar {
+    background-color: var(--primary-color);
+    color: var(--text-color);
+}
+
+.button {
+    background-color: var(--primary-color);
+    color: var(--text-color);
+    border: 1px solid var(--secondary-color);
+}
+/* Navbar stilini tema renklerine göre güncelle */
+.navbar {
+    background-color: var(--bg-color) !important;
+    color: var(--text-color) !important;
+}
+
+.navbar-brand,
+.nav-link {
+    color: var(--text-color) !important;
+}
+
+.nav-link:hover {
+        color: var(--primary-color) !important; 
+}
+
+/* Buton stilleri */
+.btn-outline-danger {
+    border-color: var(--secondary-color);
+    color: var(--secondary-color);
+}
+
+    .btn-outline-danger:hover {
+        background-color: var(--secondary-color);
+        color: var(--bg-color);
+    }
+/* Dropdown menüyü tema renklerine uyarla */
+.dropdown-menu {
+    background-color: var(--bg-color) !important;
+    border: 1px solid var(--primary) !important;
+}
+
+.dropdown-item {
+    color: var(--text-color) !important;
+}
+
+.dropdown-item:hover {
+        background-color: var(--primary) !important;
+        color: var(--bg-color) !important;
+}

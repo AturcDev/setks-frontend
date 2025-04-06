@@ -24,5 +24,15 @@ const authService = {
     login,
     logout,
 };
-
+const updateProfile = async (data) => {
+    const response = await fetch(`${API_URL}/profile`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(data)
+    });
+    return await response.json();
+};
 export default authService;

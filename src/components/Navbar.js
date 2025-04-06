@@ -1,56 +1,89 @@
 ﻿import React from 'react';
-import { Link } from 'react-router-dom';
+import { Navbar, Nav, Container, Dropdown } from 'react-bootstrap';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import TemaSecici from './TemaSecici';
 
-const Navbar = () => {
-    const { isAuthenticated, logout } = useAuth();
+const CustomNavbar = () => {
+    const { user, logout } = useAuth();
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        logout();
+        navigate('/');
+    };
 
     return (
-        <nav className="navbar navbar-expand-lg navbar-light bg-light">
-            <div className="container-fluid">
-                <Link className="navbar-brand" to="/">Sanat Eseri Kayıt Sistemi</Link>
-                <button
-                    className="navbar-toggler"
-                    type="button"
-                    data-bs-toggle="collapse"
-                    data-bs-target="#navbarNav"
-                    aria-controls="navbarNav"
-                    aria-expanded="false"
-                    aria-label="Toggle navigation"
-                >
-                    <span className="navbar-toggler-icon"></span>
-                </button>
-                <div className="collapse navbar-collapse" id="navbarNav">
-                    <ul className="navbar-nav me-auto">
-                        <li className="nav-item">
-                            <Link className="nav-link" to="/events">Etkinlikler</Link>
-                        </li>
-                        {isAuthenticated && (
+        <Navbar expand="lg" style={{ backgroundColor: 'var(--bg-color)', color: 'var(--text-color)' }}>
+            <Container>
+                <Navbar.Brand as={Link} to="/" style={{ color: 'var(--text-color)' }}>Sanat Evi</Navbar.Brand>
+                <Navbar.Toggle aria-controls="basic-navbar-nav" />
+                <Navbar.Collapse id="basic-navbar-nav">
+                    <Nav className="me-auto">
+                        <Nav.Link as={Link} to="/" style={{ color: 'var(--text-color)' }}>Anasayfa</Nav.Link>
+                        <Nav.Link as={Link} to="/Events" style={{ color: 'var(--text-color)' }}>Etkinlikler</Nav.Link>
+                        {!user && (
                             <>
-                                <li className="nav-item">
-                                    <Link className="nav-link" to="/profile">Profil</Link>
-                                </li>
-                                <li className="nav-item">
-                                    <Link className="nav-link" to="/my-works">Eserlerim</Link>
-                                </li>
+                                <Nav.Link as={Link} to="/login" style={{ color: 'var(--text-color)' }}>Giriş Yap</Nav.Link>
+                                <Nav.Link as={Link} to="/Register" style={{ color: 'var(--text-color)' }}>Kayıt Ol</Nav.Link>
                             </>
                         )}
-                    </ul>
-                    <ul className="navbar-nav">
-                        {isAuthenticated ? (
-                            <li className="nav-item">
-                                <button className="btn btn-outline-danger" onClick={logout}>Çıkış Yap</button>
-                            </li>
-                        ) : (
-                            <li className="nav-item">
-                                <Link className="btn btn-outline-success" to="/login">Giriş Yap</Link>
-                            </li>
+                        {user?.role === 'sanatci' && (
+                            <Nav.Link as={Link} to="/MyWorks" style={{ color: 'var(--text-color)' }}>Eserlerim</Nav.Link>
                         )}
-                    </ul>
-                </div>
-            </div>
-        </nav>
+                        {user?.role === 'sanatevi' && (
+                            <Nav.Link as={Link} to="/add-event" style={{ color: 'var(--text-color)' }}>Etkinlik Ekle</Nav.Link>
+                        )}
+                        {user?.role === 'koleksiyoner' && (
+                            <Nav.Link as={Link} to="/MyCollection" style={{ color: 'var(--text-color)' }}>Koleksiyonum</Nav.Link>
+                        )}
+                        {user?.role === 'admin' && (
+                            <Nav.Link as={Link} to="/admin" style={{ color: 'var(--text-color)' }}>Admin</Nav.Link>
+                        )}
+                    </Nav>
+
+                    {/* SADECE GİRİŞ YAPMIŞ KULLANICILAR İÇİN */}
+                    {user && (
+                        <Nav>
+                            <Dropdown>
+                                <Dropdown.Toggle
+                                    variant="outline-light"
+                                    id="dropdown-basic"
+                                    style={{
+                                        color: 'var(--text-color)',
+                                        borderColor: 'var(--primary)',
+                                        backgroundColor: 'transparent'
+                                    }}
+                                >
+                                    {/* Kullanıcı adını göster - eğer yoksa emailin ilk kısmını göster */}
+                                    {user.name || user.email || 'Kullanıcı'}
+                                </Dropdown.Toggle>
+                                <Dropdown.Menu style={{
+                                    backgroundColor: 'var(--bg-color)',
+                                    border: '1px solid var(--primary)'
+                                }}>
+                                    <Dropdown.Item
+                                        as={Link}
+                                        to="/profil"
+                                        style={{ color: 'var(--text-color)' }}
+                                    >
+                                        Profil
+                                    </Dropdown.Item>
+                                    <Dropdown.Item
+                                        onClick={handleLogout}
+                                        style={{ color: 'var(--text-color)' }}
+                                    >
+                                        Çıkış Yap
+                                    </Dropdown.Item>
+                                </Dropdown.Menu>
+                            </Dropdown>
+                        </Nav>
+                    )}
+                </Navbar.Collapse>
+                <TemaSecici />
+            </Container>
+        </Navbar>
     );
 };
 
-export default Navbar;
+export default CustomNavbar;

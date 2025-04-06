@@ -1,47 +1,44 @@
-﻿import React from 'react';
-import Navbar from '../components/Navbar';
+﻿import React, { useState, useEffect } from 'react';
+import { Card, Container, Row, Col } from 'react-bootstrap';
 
 const Home = () => {
-    return (
-        <div>
-            <Navbar />
-            <div className="container mt-5">
-                <h1 className="text-center mb-4">SET-KS Ana Sayfa</h1>
-                <div className="row">
-                    <div className="col-md-4 mb-4">
-                        <div className="card">
-                            <img src="https://via.placeholder.com/300" className="card-img-top" alt="Sanat Eseri 1" />
-                            <div className="card-body">
-                                <h5 className="card-title">Sanat Eseri 1</h5>
-                                <p className="card-text">Bu eser, modern sanatın en güzel örneklerinden biridir.</p>
-                                <a href="#" className="btn btn-primary">Detaylar</a>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="col-md-4 mb-4">
-                        <div className="card">
-                            <img src="https://via.placeholder.com/300" className="card-img-top" alt="Sanat Eseri 2" />
-                            <div className="card-body">
-                                <h5 className="card-title">Sanat Eseri 2</h5>
-                                <p className="card-text">Bu eser, klasik sanatın nadide örneklerindendir.</p>
-                                <a href="#" className="btn btn-primary">Detaylar</a>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="col-md-4 mb-4">
-                        <div className="card">
-                            <img src="https://via.placeholder.com/300" className="card-img-top" alt="Sanat Eseri 3" />
-                            <div className="card-body">
-                                <h5 className="card-title">Sanat Eseri 3</h5>
-                                <p className="card-text">Bu eser, çağdaş sanatın en çarpıcı örneklerinden biridir.</p>
-                                <a href="#" className="btn btn-primary">Detaylar</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    );
+  const [artworks, setArtworks] = useState([]);
+
+  // API'den veri çekme
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch('http://localhost:5267/api/artworks');
+        const result = await response.json();
+        setArtworks(result);
+      } catch (error) {
+        console.error('Veri çekme hatası:', error);
+      }
+    };
+    fetchData();
+  }, []);
+
+  return (
+    <Container className="mt-5">
+      <h1>Sanat Eserleri</h1>
+      <Row>
+        {artworks.map((artwork) => (
+          <Col key={artwork.id} md={4} className="mb-4">
+            <Card>
+              <Card.Img variant="top" src={artwork.imageUrl || 'https://via.placeholder.com/150'} />
+              <Card.Body>
+                <Card.Title>{artwork.name}</Card.Title>
+                <Card.Text>
+                  <strong>Sanatçı:</strong> {artwork.artist}<br />
+                  <strong>Yıl:</strong> {artwork.year}
+                </Card.Text>
+              </Card.Body>
+            </Card>
+          </Col>
+        ))}
+      </Row>
+    </Container>
+  );
 };
 
 export default Home;
