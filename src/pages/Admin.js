@@ -1,128 +1,214 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { Table, Tabs, Tab, Alert, Button } from 'react-bootstrap';
 import { useAuth } from '../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
 
-const AdminSayfasi = () => {
+const Admin = () => {
     const { user } = useAuth();
-    const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState('kullanicilar');
-    const [veriler, setVeriler] = useState({
-        kullanicilar: [],
-        eserler: [],
-        koleksiyonlar: [],
-        etkinlikler: []
-    });
-    const [seciliKullanici, setSeciliKullanici] = useState(null);
-    const [loading, setLoading] = useState(false);
+    const [data, setData] = useState({ users: [], artworks: [], collections: [] });
+    const [selectedUser, setSelectedUser] = useState(null);
     const [error, setError] = useState('');
 
-    // Kullanıcı admin değilse yönlendir
-    useEffect(() => {
-        if (!user || user.role !== 'admin') {
-            navigate('/');
-        }
-    }, [user, navigate]);
-
-    // Verileri çek
     useEffect(() => {
         const fetchData = async () => {
-            setLoading(true);
             try {
-                const responses = await Promise.all([
-                    fetch('/api/kullanicilar'),
-                    fetch('/api/eserler'),
+                const [usersRes, artworksRes, collectionsRes] = await Promise.all([
+                    api.get('/users'),
+                    api.get('/artworks'),
+                    api.get('/collections')
                 ]);
-
-                const data = await Promise.all(responses.map(res => res.json()));
-
-                setVeriler({
-                    kullanicilar: data[0],
-                    eserler: data[1],
-                    koleksiyonlar: data[2],
-                    etkinlikler: data[3]
+                setData({
+                    users: usersRes.data,
+                    artworks: artworksRes.data,
+                    collections: collectionsRes.data
                 });
             } catch (err) {
-                setError('Veri çekme hatası: ' + err.message);
-            } finally {
-                setLoading(false);
+                setError(err.response?.data?.message || err.message);
             }
         };
-
         fetchData();
     }, []);
 
-    // Seçili kullanıcıya göre filtreleme
-    const filtreliEserler = seciliKullanici
-        ? veriler.eserler.filter(eser => eser.kullaniciId === seciliKullanici.id)
-        : veriler.eserler;
-
-    const handleUpdate = async (tablo, id, guncelVeri) => {
+    const handleUpdate = async (entity, id, updatedData) => {
         try {
-            const response = await fetch(`/api/${tablo}/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(guncelVeri)
-            });
-
-            if (!response.ok) throw new Error('Güncelleme başarısız');
-
-            // Yerel state'i güncelle
-            setVeriler(prev => ({
+            await api.put(`/${entity}/${id}`, updatedData);
+            setData(prev => ({
                 ...prev,
-                [tablo]: prev[tablo].map(item =>
-                    item.id === id ? { ...item, ...guncelVeri } : item
+                [entity]: prev[entity].map(item =>
+                    item.id === id ? { ...item, ...updatedData } : item
                 )
             }));
         } catch (err) {
-            setError('Güncelleme hatası: ' + err.message);
+            setError(err.response?.data?.message || err.message);
         }
     };
 
-    if (loading) return <div className="text-center mt-5">Yükleniyor...</div>;
-    if (error) return <Alert variant="danger">{error}</Alert>;
+    if (!user || user.role !== 'admin') {
+        return <Alert variant="danger">Yalnızca adminler erişebilir</Alert>;
+    }
 
     return (
-        <div className="container-fluid mt-3">
-            <h2 className="mb-4">Admin Paneli</h2>
+        <div className="container mt-4">
+            <h2>Admin Paneli</h2>
+            {error && <Alert variant="danger">{error}</Alert>}
 
-            <Tabs activeKey={activeTab} onSelect={k => setActiveTab(k)} className="mb-3">
-                <Tab eventKey="kullanicilar" title="Kullanıcılar">
-                    <KullaniciTablosu
-                        data={veriler.kullanicilar}
-                        onSelect={setSeciliKullanici}
-                        onUpdate={handleUpdate}
-                    />
+            <Tabs defaultActiveKey="users" className="mb-3">
+                <Tab eventKey="users" title="Kullanıcılar">
+                    <Table striped bordered hover>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Ad</th>
+                                <th>Email</th>
+                                <th>Rol</th>
+                                <th>İşlem</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.users.map(user => (
+                                <tr key={user.id}>
+                                    <td>{user.id}</td>
+                                    <td>
+                                        <EditableField
+                                            value={user.name}
+                                            onSave={(value) => handleUpdate('users', user.id, { name: value })}
+                                        />
+                                    </td>
+                                    <td>{user.email}</td>
+                                    <td>
+                                        <EditableField
+                                            value={user.role}
+                                            onSave={(value) => handleUpdate('users', user.id, { role: value })}
+                                            options={['user', 'artist', 'collector', 'admin']}
+                                        />
+                                    </td>
+                                    <td>
+                                        <Button
+                                            variant={selectedUser?.id === user.id ? 'primary' : 'outline-primary'}
+                                            size="sm"
+                                            onClick={() => setSelectedUser(user)}
+                                        >
+                                            Seç
+                                        </Button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </Table>
                 </Tab>
-                <Tab eventKey="eserler" title="Eserler">
-                    <EserTablosu
-                        data={filtreliEserler}
-                        onUpdate={handleUpdate}
-                    />
+
+                <Tab eventKey="artworks" title="Eserler">
+                    <Table striped bordered hover>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Ad</th>
+                                <th>Sanatçı</th>
+                                <th>Yıl</th>
+                                <th>Fiyat</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.artworks
+                                .filter(artwork =>
+                                    !selectedUser || artwork.artistId === selectedUser.id
+                                )
+                                .map(artwork => (
+                                    <tr key={artwork.id}>
+                                        <td>{artwork.id}</td>
+                                        <td>
+                                            <EditableField
+                                                value={artwork.title}
+                                                onSave={(value) => handleUpdate('artworks', artwork.id, { title: value })}
+                                            />
+                                        </td>
+                                        <td>
+                                            {data.users.find(u => u.id === artwork.artistId)?.name || 'Bilinmiyor'}
+                                        </td>
+                                        <td>
+                                            <EditableField
+                                                value={artwork.year}
+                                                onSave={(value) => handleUpdate('artworks', artwork.id, { year: value })}
+                                            />
+                                        </td>
+                                        <td>
+                                            <EditableField
+                                                value={artwork.price}
+                                                onSave={(value) => handleUpdate('artworks', artwork.id, { price: value })}
+                                            />
+                                        </td>
+                                    </tr>
+                                ))}
+                        </tbody>
+                    </Table>
+                </Tab>
+
+                <Tab eventKey="collections" title="Koleksiyonlar">
+                    <Table striped bordered hover>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Ad</th>
+                                <th>Koleksiyoner</th>
+                                <th>Eser Sayısı</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {data.collections.map(collection => (
+                                <tr key={collection.id}>
+                                    <td>{collection.id}</td>
+                                    <td>
+                                        <EditableField
+                                            value={collection.name}
+                                            onSave={(value) => handleUpdate('collections', collection.id, { name: value })}
+                                        />
+                                    </td>
+                                    <td>
+                                        {data.users.find(u => u.id === collection.collectorId)?.name || 'Bilinmiyor'}
+                                    </td>
+                                    <td>
+                                        {data.artworks.filter(a => a.collectionId === collection.id).length}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </Table>
                 </Tab>
             </Tabs>
         </div>
     );
 };
 
-// Yardımcı Tablo Bileşenleri
-const EditableCell = ({ value, onUpdate, field, id, tablo }) => {
+// EditableField bileşeni
+const EditableField = ({ value, onSave, options }) => {
     const [editing, setEditing] = useState(false);
     const [tempValue, setTempValue] = useState(value);
 
     const handleSave = () => {
-        onUpdate(tablo, id, { [field]: tempValue });
+        onSave(tempValue);
         setEditing(false);
     };
 
     return editing ? (
-        <div className="d-flex">
-            <input
-                type="text"
-                value={tempValue}
-                onChange={(e) => setTempValue(e.target.value)}
-                className="form-control form-control-sm"
-            />
+        <div className="d-flex align-items-center">
+            {options ? (
+                <select
+                    className="form-select form-select-sm"
+                    value={tempValue}
+                    onChange={(e) => setTempValue(e.target.value)}
+                >
+                    {options.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                    ))}
+                </select>
+            ) : (
+                <input
+                    type="text"
+                    className="form-control form-control-sm"
+                    value={tempValue}
+                    onChange={(e) => setTempValue(e.target.value)}
+                />
+            )}
             <Button variant="success" size="sm" onClick={handleSave} className="ms-2">
                 ✓
             </Button>
@@ -137,101 +223,4 @@ const EditableCell = ({ value, onUpdate, field, id, tablo }) => {
     );
 };
 
-const KullaniciTablosu = ({ data, onSelect, onUpdate }) => (
-    <Table striped bordered hover responsive>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Ad</th>
-                <th>Email</th>
-                <th>Rol</th>
-                <th>İşlem</th>
-            </tr>
-        </thead>
-        <tbody>
-            {data.map(user => (
-                <tr key={user.id}>
-                    <td>{user.id}</td>
-                    <td>
-                        <EditableCell
-                            value={user.name}
-                            onUpdate={onUpdate}
-                            field="name"
-                            id={user.id}
-                            tablo="kullanicilar"
-                        />
-                    </td>
-                    <td>{user.email}</td>
-                    <td>
-                        <EditableCell
-                            value={user.role}
-                            onUpdate={onUpdate}
-                            field="role"
-                            id={user.id}
-                            tablo="kullanicilar"
-                        />
-                    </td>
-                    <td>
-                        <Button variant="info" size="sm" onClick={() => onSelect(user)}>
-                            Seç
-                        </Button>
-                    </td>
-                </tr>
-            ))}
-        </tbody>
-    </Table>
-);
-
-// Diğer tablo bileşenleri benzer şekilde oluşturulabilir
-const EserTablosu = ({ data, onUpdate }) => (
-    <Table striped bordered hover responsive>
-        <thead>
-            <tr>
-                <th>ID</th>
-                <th>Ad</th>
-                <th>Sanatçı</th>
-                <th>Yıl</th>
-                <th>Fiyat</th>
-            </tr>
-        </thead>
-        <tbody>
-            {data.map(eser => (
-                <tr key={eser.id}>
-                    <td>{eser.id}</td>
-                    <td>
-                        <EditableCell
-                            value={eser.ad}
-                            onUpdate={onUpdate}
-                            field="ad"
-                            id={eser.id}
-                            tablo="eserler"
-                        />
-                    </td>
-                    <td>{eser.sanatciAdi}</td>
-                    <td>
-                        <EditableCell
-                            value={eser.yil}
-                            onUpdate={onUpdate}
-                            field="yil"
-                            id={eser.id}
-                            tablo="eserler"
-                        />
-                    </td>
-                    <td>
-                        <EditableCell
-                            value={eser.fiyat}
-                            onUpdate={onUpdate}
-                            field="fiyat"
-                            id={eser.id}
-                            tablo="eserler"
-                        />
-                    </td>
-                </tr>
-            ))}
-        </tbody>
-    </Table>
-);
-
-// KoleksiyonTablosu ve EtkinlikTablosu bileşenleri benzer şekilde oluşturulabilir
-
-export default AdminSayfasi;
+export default Admin;

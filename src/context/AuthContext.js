@@ -1,68 +1,75 @@
-﻿import React, { createContext, useContext, useState, useEffect } from 'react';
-import authService from '../services/api';
+﻿import React, { createContext, useState, useEffect, useContext } from 'react'; // useContext eklendi
+import api from '../services/api';
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
+    const [user, setUser] = useState(null);
+    const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const user = JSON.parse(localStorage.getItem('user'));
-    if (user) {
-      setUser(user);
-    }
-  }, []);
+    useEffect(() => {
+        const initializeAuth = async () => {
+            const storedUser = localStorage.getItem('user');
+            const token = localStorage.getItem('token');
 
-    // AuthContext.js'deki login fonksiyonu
-    const login = async (userData) => {
-        const response = await authService.login(userData);
-        if (response.token) {
-            const user = {
-                token: response.token,
-                name: response.name,    // Kullanıcı adı
-                email: response.email,  // Kullanıcı emaili
-                role: response.role     // Kullanıcı rolü
-            };
-            localStorage.setItem('user', JSON.stringify(user));
-            setUser(user);
+            if (storedUser && token) {
+                try {
+                    // Token geçerliliğini kontrol et
+                    const response = await api.get('/api/auth/validate');
+                    setUser(JSON.parse(storedUser));
+                } catch (err) {
+                    localStorage.removeItem('user');
+                    localStorage.removeItem('token');
+                }
+            }
+            setLoading(false);
+        };
+
+        initializeAuth();
+    }, []);
+
+    const login = async (credentials) => {
+        try {
+            const response = await api.login(credentials);
+            setUser(response.data.user);
+            localStorage.setItem('token', response.data.token);
+            localStorage.setItem('user', JSON.stringify(response.data.user));
+            return response;
+        } catch (err) {
+            throw err;
         }
-        return response;
     };
 
-  const logout = () => {
-    localStorage.removeItem('user');
-    setUser(null);
-  };
+    const logout = () => {
+        setUser(null);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+    };
 
-    // AuthContext'e updateUser fonksiyonu ekleyin
     const updateUser = async (updatedData) => {
         try {
-            const response = await authService.updateProfile(updatedData);
-            if (response.success) {
-                const updatedUser = {
-                    ...user,
-                    ...updatedData
-                };
-                localStorage.setItem('user', JSON.stringify(updatedUser));
-                setUser(updatedUser);
-            }
+            const response = await api.updateProfile(updatedData);
+            const newUserData = { ...user, ...updatedData };
+            setUser(newUserData);
+            localStorage.setItem('user', JSON.stringify(newUserData));
             return response;
-        } catch (error) {
-            console.error('Update error:', error);
-            throw error;
+        } catch (err) {
+            throw err;
         }
     };
-    // AuthContext.js'ye admin kontrolü ekleyin
-    const isAdmin = () => {
-        return user && user.role === 'admin';
-    };
 
-    // Provider value'suna ekleyin
     return (
-        <AuthContext.Provider value={{ user, login, logout, updateUser, isAdmin }}>
+        <AuthContext.Provider value={{
+            user,
+            loading,
+            login,
+            logout,
+            updateUser
+        }}>
             {children}
         </AuthContext.Provider>
     );
 };
 
+// useContext import edildiği için artık hata vermeyecek
 export const useAuth = () => useContext(AuthContext);

@@ -1,38 +1,27 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5267/api'; // Backend API URL'si
-
-const register = async (userData) => {
-    const response = await axios.post(`${API_URL}/Users/Register`, userData);
-    return response.data;
-};
-
-const login = async (userData) => {
-    const response = await axios.post(`${API_URL}/Users/Login`, userData);
-    if (response.data.token) {
-        localStorage.setItem('user', JSON.stringify(response.data));
+const api = axios.create({
+    baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5267',
+    headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
     }
-    return response.data;
-};
+});
 
-const logout = () => {
-    localStorage.removeItem('user');
-};
+export default {
+    // Auth
+    login: (credentials) => api.post('/api/auth/login', credentials),
+    register: (data) => api.post('/api/auth/register', data),
 
-const authService = {
-    register,
-    login,
-    logout,
+    // User
+    getUsers: () => api.get('/api/users'),
+    updateUser: (id, data) => api.put(`/api/users/${id}`, data),
+
+    // Artworks
+    getArtworks: () => api.get('/api/artworks'),
+    updateArtwork: (id, data) => api.put(`/api/artworks/${id}`, data),
+
+    // Collections
+    getCollections: () => api.get('/api/collections'),
+    updateCollection: (id, data) => api.put(`/api/collections/${id}`, data)
 };
-const updateProfile = async (data) => {
-    const response = await fetch(`${API_URL}/profile`, {
-        method: 'PUT',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(data)
-    });
-    return await response.json();
-};
-export default authService;
