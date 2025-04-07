@@ -1,0 +1,17 @@
+:root {
+    --bg-color: #fce4ec;
+    --text-color: #880e4f;
+    --primary-color: #e91e63;
+    --secondary-color: #f48fb1;
+}
+
+body.pink {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+.button {
+    background-color: var(--primary-color);
+    color: var(--text-color);
+    border: 1px solid var(--secondary-color);
+}

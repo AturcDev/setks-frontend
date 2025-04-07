@@ -1,0 +1,31 @@
+.admin-panel {
+  .nav-tabs {
+    border-bottom: 2px solid #dee2e6;
+    
+    .nav-link {
+      color: var(--text-color);
+      border: none;
+      margin-right: 0.5rem;
+      
+      &.active {
+        color: var(--primary);
+        border-bottom: 3px solid var(--primary);
+        background: transparent;
+      }
+    }
+  }
+  
+  .table-responsive {
+    margin-top: 1rem;
+    
+    th {
+      background-color: var(--bg-secondary);
+      position: sticky;
+      top: 0;
+    }
+  }
+  
+  .editable-cell {
+    min-width: 100px;
+  }
+}

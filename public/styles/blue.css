@@ -1,0 +1,17 @@
+:root {
+    --bg-color: #e3f2fd;
+    --text-color: #0d47a1;
+    --primary-color: #1976d2;
+    --secondary-color: #42a5f5;
+}
+
+body.blue {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+.button {
+    background-color: var(--primary-color);
+    color: var(--text-color);
+    border: 1px solid var(--secondary-color);
+}
